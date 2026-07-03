@@ -44,7 +44,7 @@
     --maxw: 1180px;
   }
   *{box-sizing:border-box;}
-  html{scroll-behavior:smooth;}
+  html{scroll-behavior:auto;}
   body{
     margin:0;
     background:var(--black);
@@ -53,7 +53,6 @@
     font-weight:300;
     -webkit-font-smoothing:antialiased;
     overflow-x:hidden;
-    scroll-behavior:smooth;
     -webkit-overflow-scrolling:touch;
   }
   h1,h2,h3,.serif{
@@ -1083,28 +1082,31 @@ document.getElementById("rezerwacjaBtn")?.addEventListener("click", () => smooth
 
 
 <script>
-function smoothScrollTo(id) {
-    const target = document.getElementById(id);
-    if (!target) return;
-    const headerH = document.getElementById('siteHeader')?.offsetHeight || 0;
-    const targetTop = target.getBoundingClientRect().top + window.pageYOffset - headerH;
-    const startTop = window.pageYOffset;
-    const distance = targetTop - startTop;
-    const duration = 1000;
-    let startTime = null;
+function easeInOutQuart(t){return t<.5?8*t*t*t*t:1-8*(--t)*t*t*t;}
 
-    function ease(t) {
-        return t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
-    }
+function animatedScrollTo(targetY, duration){
+  const startY = window.scrollY;
+  const diff = targetY - startY;
+  if(Math.abs(diff) < 2) return;
+  let startTime = null;
+  function step(now){
+    if(!startTime) startTime = now;
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    window.scrollTo(0, startY + diff * easeInOutQuart(progress));
+    if(progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
 
-    function step(timestamp) {
-        if (!startTime) startTime = timestamp;
-        const elapsed = Math.min((timestamp - startTime) / duration, 1);
-        window.scrollTo(0, startTop + distance * ease(elapsed));
-        if (elapsed < 1) requestAnimationFrame(step);
-    }
-
-    requestAnimationFrame(step);
+function smoothScrollTo(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const headerH = document.getElementById('siteHeader')?.offsetHeight || 84;
+  const targetY = el.getBoundingClientRect().top + window.scrollY - headerH - 6;
+  const distance = Math.abs(targetY - window.scrollY);
+  const duration = Math.min(Math.max(distance * 1.4, 600), 1200);
+  animatedScrollTo(targetY, duration);
 }
 
 document.getElementById("menuBtn")?.addEventListener("click", () => smoothScrollTo("menu"));
@@ -1189,7 +1191,12 @@ if (reservationForm) {
       // Fallback: otwórz klienta pocztowego
       const subject = `Rezerwacja stolika — ${name}`;
       const body = `Imię i nazwisko: ${name}\nNumer telefonu: ${phone}\nData rezerwacji: ${dateFormatted}\nLiczba osób: ${guests}\nDodatkowe uwagi: ${notes || "brak"}`;
-      window.location.href = `mailto:kontakt@lasradomsko.pl?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      const a = document.createElement('a');
+      a.href = `mailto:kontakt@lasradomsko.pl?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
     }
